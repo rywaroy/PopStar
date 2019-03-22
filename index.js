@@ -2,15 +2,17 @@ const screenWidth = window.innerWidth;
 const screenHeight = window.innerHeight;
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-const unit = screenWidth / 10;
+const wn = 10;
+const hn = 10;
+const unit = parseInt(screenWidth / wn);
 
 canvas.width = screenWidth;
 canvas.height = screenHeight;
 
 const stars = [];    
-for (let i = 0; i < 10; i++) {
+for (let i = 0; i < wn; i++) {
   const line = []
-  for (let j = 0; j < 10; j++) {
+  for (let j = 0; j < hn; j++) {
     line.push({
       color: this.randomColor(),
       left: false,
@@ -20,7 +22,7 @@ for (let i = 0; i < 10; i++) {
       active: false,
       x: i * unit,
       y: canvas.height - j * unit - unit,
-      tx: 0,
+      tx: null,
       ty: 0,
     });
   }
@@ -81,7 +83,7 @@ draw();
 canvas.addEventListener('touchstart', function(e) {
   const x = e.targetTouches[0].clientX;
   const y = e.targetTouches[0].clientY;
-  if (y < canvas.height - 10 * unit) {
+  if (y < canvas.height - hn * unit) {
     return false;
   }
   const yi = parseInt((canvas.height - y) / unit);
@@ -102,6 +104,7 @@ function findTarge(i, j) {
     stars[i][j].active = true;
     if (hasBrother(i, j, color)) {
       findAll(i, j, color);
+      draw();
     }
   }
 }
@@ -159,8 +162,6 @@ function findAll(i, j, color) {
       star.active = true;
     }
   }
-
-  draw();
 }
 
 // 消除方块，清空所有标记方块
@@ -173,20 +174,22 @@ function clearAllBox() {
     const line = stars[i];
     for (let j = line.length - 1; j >= 0; j--) {
       if (line[j].active) {
+        num++;
         line.splice(j, 1);
       }
     }
   }
 
-  // 循环更新方块新的位置
+  // 循环更新方块目标的位置
   for (let i = stars.length - 1; i >= 0; i--) {
     const line = stars[i];
     for (let j = line.length - 1; j >= 0; j--) {
-      line[j].x = i * unit;
-      line[j].y = canvas.height - j * unit - unit;
+      line[j].tx = i * unit;
+      line[j].ty = canvas.height - j * unit - unit;
     }
   }
-  draw();
+
+  move(num);
 }
 
 // 验证目标方块周围是否有相同的方块
@@ -212,6 +215,113 @@ function hasBrother(i, j) {
   }
 }
 
+// 消除方块后轨迹运动
+function move() {
+  let id;
+
+  function moving() {
+    let all = 0;
+    let done = 0;
+    let id;
+    for (let i = 0; i < stars.length; i++) {
+      const line = stars[i];
+      for (let j = 0; j < line.length; j++) {
+        all++;
+        if (line[j].ty === 0) {
+          done++;
+          continue;
+        }
+        if (line[j].ty > line[j].y) {
+          line[j].y++;
+        }
+        if (line[j].ty < line[j].y) {
+          line[j].y--;
+        }
+        if (line[j].ty === line[j].y) {
+          line[j].ty = 0;
+        }
+      }
+    }
+    draw();
+    if (all === done) {
+      cancelAnimationFrame(id);
+      merge()
+    } else {
+      requestAnimationFrame(moving);
+    }
+  }
+  id = requestAnimationFrame(moving);
+}
+
+// 合并纵轴方块
+function merge() {
+  const stack = []; // 记录空数组的栈
+  for (let i = 0; i < stars.length; i++) {
+    if (stars[i].length === 0) {
+      stack.push(i);
+    }
+  }
+  if (stack.length === 0) {
+    isOver();
+    return;
+  }
+
+  // const num = Math.max.apply(Math, stack);
+
+  // 标记目标横线移动坐标
+  for (let k = 0; k < stack.length; k++) {
+    const last = stack[k + 1] ? stack[k + 1] : stars.length;
+    for (let i = stack[k] + 1; i < last; i++) {
+      const line = stars[i];
+      for (let j = 0; j < line.length; j++) {
+        line[j].tx = line[j].x - unit * (k + 1);
+      }
+    }
+  }
+
+  // 清楚空纵向列表
+  for (let i = stars.length - 1; i >= 0; i--) {
+    if (stars[i].length === 0) {
+      stars.splice(i, 1);
+    }
+  }
+
+  // 横向移动
+  let id;
+  function moving() {
+    let all = 0;
+    let done = 0;
+    let id;
+    for (let i = 0; i < stars.length; i++) {
+      const line = stars[i];
+      for (let j = 0; j < line.length; j++) {
+        all++;
+        if (line[j].tx === null) {
+          done++;
+          continue;
+        }
+        if (line[j].tx > line[j].x) {
+          line[j].x++;
+        }
+        if (line[j].tx < line[j].x) {
+          line[j].x--;
+        }
+        if (line[j].tx === line[j].x) {
+          line[j].tx = null;
+        }
+      }
+    }
+    draw();
+    if (all === done) {
+      cancelAnimationFrame(id);
+      isOver();
+    } else {
+      requestAnimationFrame(moving);
+    }
+  }
+  id = requestAnimationFrame(moving);
+}
+
 // 验证是否游戏结束
 function isOver() {
   for (let i = 0; i < stars.length; i++) {
@@ -222,7 +332,7 @@ function isOver() {
       }
     }
   }
-  return false;
+  alert('游戏结束');
 }
 
 // 清空
