@@ -8,12 +8,12 @@ let unit = parseInt(screenWidth / wn);
 if (unit % 2 === 1) {
   unit--;
 }
-let disable = false;
+let disable = true;
 
 canvas.width = screenWidth;
 canvas.height = screenHeight;
 
-const stars = [];    
+const stars = [];
 for (let i = 0; i < wn; i++) {
   const line = []
   for (let j = 0; j < hn; j++) {
@@ -25,7 +25,7 @@ for (let i = 0; i < wn; i++) {
       bottom: false,
       active: false,
       x: i * unit,
-      y: canvas.height - j * unit - unit,
+      y: 0,
       tx: null,
       ty: 0,
     });
@@ -74,13 +74,24 @@ function drawRoundRect(x, y, width, height, radius, color, data){
 }
 
 function randomColor() {
-  const colors = ['red', 'blue', 'green', 'yellow'];
-  const num = parseInt(Math.random() * 4);
+  const colors = ['red', 'blue', 'green', 'yellow', 'purple'];
+  const num = parseInt(Math.random() * 5);
   return colors[num];
 }
 
-// drawRoundRect(60, 60, 20, 20, 4, 'red')
-draw();
+// 游戏开始
+function start() {
+  for (let i = 0; i < stars.length; i++) {
+    const line = stars[i];
+    for (let j = 0; j < line.length; j++) {
+      line[j].y = canvas.height - j * unit - unit - (j * 20);
+      line[j].ty = canvas.height - j * unit - unit;
+    }
+  }
+  move();
+}
+
+start();
 
 canvas.addEventListener('touchstart', function(e) {
   if (disable) {
@@ -195,7 +206,7 @@ function clearAllBox() {
     }
   }
 
-  move(num);
+  move();
 }
 
 // 验证目标方块周围是否有相同的方块
