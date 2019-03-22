@@ -4,7 +4,11 @@ const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const wn = 10;
 const hn = 10;
-const unit = parseInt(screenWidth / wn);
+let unit = parseInt(screenWidth / wn);
+if (unit % 2 === 1) {
+  unit--;
+}
+let disable = false;
 
 canvas.width = screenWidth;
 canvas.height = screenHeight;
@@ -34,42 +38,39 @@ function draw() {
   for (let i = 0; i < stars.length; i++) {
     const line = stars[i];
     for (let j = 0; j < line.length; j++) {
-      ctx.fillStyle = line[j].color;
-      ctx.fillRect(line[j].x, line[j].y, unit, unit);
-      if (line[j].left) {
-        ctx.beginPath();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 3;
-        ctx.moveTo(line[j].x, line[j].y);
-        ctx.lineTo(line[j].x, line[j].y + unit);
-        ctx.stroke();
-      }
-      if (line[j].top) {
-        ctx.beginPath();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 3;
-        ctx.moveTo(line[j].x, line[j].y);
-        ctx.lineTo(line[j].x + unit, line[j].y);
-        ctx.stroke();
-      }
-      if (line[j].right) {
-        ctx.beginPath();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 3;
-        ctx.moveTo(line[j].x + unit, line[j].y);
-        ctx.lineTo(line[j].x + unit, line[j].y + unit);
-        ctx.stroke();
-      }
-      if (line[j].bottom) {
-        ctx.beginPath();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 3;
-        ctx.moveTo(line[j].x, line[j].y + unit);
-        ctx.lineTo(line[j].x + unit, line[j].y + unit);
-        ctx.stroke();
-      }
+      drawRoundRect(line[j].x, line[j].y, unit, unit, 4, line[j].color, line[j]);
     }
   }
+}
+
+function drawRoundRect(x, y, width, height, radius, color, data){
+  const borderColor = '#fff';
+  const activeBorderColor = '#000';
+  ctx.beginPath();
+  ctx.fillStyle = color;
+  ctx.fillRect(x + 1, y + 1, width  - 2, height - 2);
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = data.top ? activeBorderColor : borderColor;
+  ctx.arc(x + radius, y + radius, radius, Math.PI, Math.PI * 3 / 2);
+  ctx.lineTo(width - radius + x, y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.strokeStyle = data.right ? activeBorderColor : borderColor;
+  ctx.arc(width - radius + x, radius + y, radius, Math.PI * 3 / 2, Math.PI * 2);
+  ctx.lineTo(width + x, height + y - radius);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.strokeStyle = data.bottom ? activeBorderColor : borderColor;
+  ctx.arc(width - radius + x, height - radius + y, radius, 0, Math.PI * 1 / 2);
+  ctx.lineTo(radius + x, height +y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.strokeStyle = data.left ? activeBorderColor : borderColor;
+  ctx.arc(radius + x, height - radius + y, radius, Math.PI * 1 / 2, Math.PI);
+  ctx.lineTo(x, y + radius);
+  ctx.stroke();
+  ctx.closePath();
 }
 
 function randomColor() {
@@ -78,9 +79,14 @@ function randomColor() {
   return colors[num];
 }
 
+// drawRoundRect(60, 60, 20, 20, 4, 'red')
 draw();
 
 canvas.addEventListener('touchstart', function(e) {
+  if (disable) {
+    return;
+  }
+  disable = true;
   const x = e.targetTouches[0].clientX;
   const y = e.targetTouches[0].clientY;
   if (y < canvas.height - hn * unit) {
@@ -88,7 +94,6 @@ canvas.addEventListener('touchstart', function(e) {
   }
   const yi = parseInt((canvas.height - y) / unit);
   const xi = parseInt(x / unit);
-  // console.log(`横轴第${xi}个 纵轴第${yi}个`);
   if (stars[xi] && stars[xi][yi]) {
     findTarge(xi, yi);
   }
@@ -99,10 +104,11 @@ function findTarge(i, j) {
   if (stars[i][j].active) {
     clearAllBox();
   } else {
+    disable = false;
     clear();
-    const color = stars[i][j].color;
-    stars[i][j].active = true;
-    if (hasBrother(i, j, color)) {
+    if (hasBrother(i, j)) {
+      const color = stars[i][j].color;
+      stars[i][j].active = true;
       findAll(i, j, color);
       draw();
     }
@@ -167,7 +173,7 @@ function findAll(i, j, color) {
 // 消除方块，清空所有标记方块
 function clearAllBox() {
   let num = 0;
-  const oldStars = JSON.parse(JSON.stringify(stars));
+  // const oldStars = JSON.parse(JSON.stringify(stars));
 
   // 循环删除被标记的方块
   for (let i = stars.length - 1; i >= 0; i--) {
@@ -222,7 +228,6 @@ function move() {
   function moving() {
     let all = 0;
     let done = 0;
-    let id;
     for (let i = 0; i < stars.length; i++) {
       const line = stars[i];
       for (let j = 0; j < line.length; j++) {
@@ -232,10 +237,10 @@ function move() {
           continue;
         }
         if (line[j].ty > line[j].y) {
-          line[j].y++;
+          line[j].y += 2;
         }
         if (line[j].ty < line[j].y) {
-          line[j].y--;
+          line[j].y -= 2;
         }
         if (line[j].ty === line[j].y) {
           line[j].ty = 0;
@@ -247,7 +252,7 @@ function move() {
       cancelAnimationFrame(id);
       merge()
     } else {
-      requestAnimationFrame(moving);
+      id = requestAnimationFrame(moving);
     }
   }
   id = requestAnimationFrame(moving);
@@ -262,11 +267,10 @@ function merge() {
     }
   }
   if (stack.length === 0) {
+    disable = false;
     isOver();
     return;
   }
-
-  // const num = Math.max.apply(Math, stack);
 
   // 标记目标横线移动坐标
   for (let k = 0; k < stack.length; k++) {
@@ -291,7 +295,6 @@ function merge() {
   function moving() {
     let all = 0;
     let done = 0;
-    let id;
     for (let i = 0; i < stars.length; i++) {
       const line = stars[i];
       for (let j = 0; j < line.length; j++) {
@@ -301,10 +304,10 @@ function merge() {
           continue;
         }
         if (line[j].tx > line[j].x) {
-          line[j].x++;
+          line[j].x += 2;
         }
         if (line[j].tx < line[j].x) {
-          line[j].x--;
+          line[j].x -= 2;
         }
         if (line[j].tx === line[j].x) {
           line[j].tx = null;
@@ -313,10 +316,11 @@ function merge() {
     }
     draw();
     if (all === done) {
+      disable = false;
       cancelAnimationFrame(id);
       isOver();
     } else {
-      requestAnimationFrame(moving);
+      id = requestAnimationFrame(moving);
     }
   }
   id = requestAnimationFrame(moving);
